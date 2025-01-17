@@ -7,10 +7,10 @@ import scipy.sparse as sparse
 
 def create_database_mp(grp,ID,X,Y):
  #open access to Duke HB database for macroscale polygon
- fpduke = nc.Dataset('/home/nc153/soteria/projects/hydroblocks_inter_catchment/regions/GFDL_TEST/experiments/simulations/baseline/%d/input_file.nc' % ID)
+ fpduke = nc.Dataset('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/GFDL_TEST/experiments/simulations/baseline/%d/input_file.nc' % ID)
  #create macroscale polygon group
- #mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X+1,Y+1))
- mpgrp = grp.create_group("%d" % (ID,))
+ mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X+1,Y+1))
+ #mpgrp = grp.create_group("%d" % (ID,))
  #metadata
  mtdgrp = mpgrp.create_group("metadata")
  mtdgrp['ilat'] = X
@@ -18,6 +18,8 @@ def create_database_mp(grp,ID,X,Y):
  mtdgrp['latitude'] = fpduke['metadata'].latitude
  mtdgrp['longitude'] = fpduke['metadata'].longitude
  mtdgrp['frac'] = (fpduke['parameters']['area'][:]/np.sum(fpduke['parameters']['area'][:])).astype(np.float64)
+ #mtdgrp['frac'][:] = np.ones(fpduke['parameters']['hru'][:].size)/fpduke['parameters']['hru'][:].size
+ #TMP
  mtdgrp['tid'] = (fpduke['parameters']['hru'][:]+1).astype(np.int32) #temporary
  mtdgrp['tile'] = (fpduke['parameters']['hru'][:]).astype(np.int32)
  mtdgrp['type'] = 3*np.ones(fpduke['parameters']['hru'][:].size).astype(np.int32) #temporary
@@ -38,9 +40,9 @@ def create_database_mp(grp,ID,X,Y):
  #dat_emis_dry
  sgrp['dat_emis_dry'] = 1*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
  #dat_emis_sat
- sgrp['dat_emis_sat'] = 1.1e+06*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
+ sgrp['dat_emis_sat'] = 1*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
  #dat_heat_capacity_dry
- sgrp['dat_heat_capacity_dry'] = 0.05*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
+ sgrp['dat_heat_capacity_dry'] = 1.1e+06*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
  #dat_k_sat_ref
  sgrp['dat_k_sat_ref'] = (fpduke['parameters']['SATDK'][:,0]).astype(np.float64) #units???
  #dat_psi_sat_ref
@@ -68,11 +70,12 @@ def create_database_mp(grp,ID,X,Y):
  #dat_w_sat
  sgrp['dat_w_sat'] = (fpduke['parameters']['MAXSMC'][:,0]).astype(np.float64)
  #dat_z0_momentum
- sgrp['dat_z0_momentum'] = 0.7*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
+ sgrp['dat_z0_momentum'] = 0.01*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
  #depth_to_bedrock
  sgrp['depth_to_bedrock'] = (fpduke['parameters']['m'][:]).astype(np.float64)
  #frac
  sgrp['frac'] = (fpduke['parameters']['area'][:]/np.sum(fpduke['parameters']['area'][:])).astype(np.float64) ###
+ (fpduke['parameters']['area'][:]/np.sum(fpduke['parameters']['area'][:])).astype(np    .float64)
  #gw_hillslope_length
  sgrp['gw_hillslope_length'] = 1000*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
  #gw_hillslope_relief
@@ -93,8 +96,10 @@ def create_database_mp(grp,ID,X,Y):
  sgrp['gw_scale_soil_depth'] = 1*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
  #gw_soil_e_depth
  sgrp['gw_soil_e_depth'] = 1*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###!
+ #sgrp['gw_soil_e_depth'][:] = 14.0
  #hidx_j
  sgrp['hidx_j'] = (fpduke['parameters']['hband'][:]).astype(np.int32)+1
+ #sgrp['hidx_j'][:] = 1
  nhband = int(np.max(fpduke['parameters']['hband'][:])+1)
  #hidx_k
  sgrp['hidx_k'] = 1*np.ones(fpduke['parameters']['hru'][:].size).astype(np.int32) #temporary
@@ -102,8 +107,10 @@ def create_database_mp(grp,ID,X,Y):
  sgrp['irrigation'] = 0.0*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) #temporary
  #ksat_0cm
  sgrp['ksat_0cm'] = (fpduke['parameters']['SATDK'][:,0]).astype(np.float64) #units???
+ #sgrp['ksat_0cm'][:] = 0.0109779
  #ksat_200cm
  sgrp['ksat_200cm'] = (fpduke['parameters']['SATDK'][:,-1]).astype(np.float64) #units???
+ #sgrp['ksat_200cm'][:] = 0.000429401
  #landuse
  sgrp['landuse'] = 3*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) #temporary
  #microtopo
@@ -120,20 +127,21 @@ def create_database_mp(grp,ID,X,Y):
  #tann
  sgrp['tann'] = 286.0*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) #temporary
  #tile
- sgrp['tile'] = (fpduke['parameters']['hru'][:]).astype(np.int32) #temporary
+ sgrp['tile'] = (fpduke['parameters']['hru'][:]).astype(np.int32) + 1#temporary
+ #sgrp['tile'] = (fpduke['parameters']['hru'][:]).astype(np.int32) #temporary
  #tile_elevation
  sgrp['tile_elevation'] = (fpduke['parameters']['dem'][:]).astype(np.float64)
  #tile_hlsp_elev
  sgrp['tile_hlsp_elev'] = (fpduke['parameters']['hand'][:]).astype(np.float64)
  #tile_hlsp_frac
  sgrp['tile_hlsp_frac'] = (fpduke['parameters']['area'][:]/np.sum(fpduke['parameters']['area'][:])).astype(np.float64) ####!
+ #sgrp['tile_hlsp_frac'][:] = np.ones(fpduke['parameters']['hru'][:].size)/fpduke['parameters']['hru'][:].size
  #####Convert watershed properties
  width = sparse.csr_matrix((fpduke['wmatrix_Basin1']['data'][:],
                             fpduke['wmatrix_Basin1']['indices'][:],
                             fpduke['wmatrix_Basin1']['indptr'][:]),
                             shape=(nhband,nhband),dtype=np.float64)
  width = width.todense() #the definition needs some work... currently assuming the hband connectivity defines the width
- print(width)
  hbands = (fpduke['parameters']['hband'][:]).astype(np.int32)
  tile_area = fpduke['parameters']['area'][:]
  hband_width = np.copy(np.diagonal(width, offset=1))
@@ -161,10 +169,13 @@ def create_database_mp(grp,ID,X,Y):
  sgrp['tile_hlsp_hpos'] = (tile_hpos).astype(np.float64)
  #tile_hlsp_length
  sgrp['tile_hlsp_length'] = (tile_length).astype(np.float64)
+ sgrp['tile_hlsp_length'][:] = 100 #TMP
  #tile_hlsp_slope
  sgrp['tile_hlsp_slope'] = (fpduke['parameters']['slope'][:]).astype(np.float64)
+ sgrp['tile_hlsp_slope'][:] = 0.01 #TMP
  #tile_hlsp_width
  sgrp['tile_hlsp_width'] = (tile_width/tile_width[0]).astype(np.float64)
+ sgrp['tile_hlsp_width'][:] = 1 #TMP
  #vegn
  sgrp['vegn'] = 1*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) #temporary
  #wtd
@@ -179,18 +190,19 @@ def create_database_mp(grp,ID,X,Y):
  return
 
 #create output file
-os.system('rm test.h5')
-fp = h5py.File('test.h5', 'w')
+os.system('rm /ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TrialandError/test.h5')
+fp = h5py.File('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TrialandError/test.h5', 'w')
+grp = fp.create_group("grid_data")
 
 #iterate through the different macroscale polygons
-df = geopandas.read_file('/home/nc153/soteria/projects/hydroblocks_inter_catchment/regions/GFDL_TEST/data/shp/domain.shp')
+df = geopandas.read_file('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/GFDL_TEST/data/shp/domain.shp')
 nmp = len(df['ID'])
 for imp in range(nmp):
     ID = df['ID'][imp]
     X = df['X'][imp]
     Y = df['Y'][imp]
     print(ID,X,Y)
-    create_database_mp(fp,ID,X,Y)
+    create_database_mp(grp,ID,X,Y)
 
 #Close file
 fp.close()
