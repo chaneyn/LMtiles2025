@@ -12,7 +12,7 @@ def create_database_mp(grp,ID,X,Y,md):
 
  fpduke = nc.Dataset(os.path.join(md['rdir'],f'experiments/simulations/baseline/{ID}/input_file.nc')) # open the HB database
  #create macroscale polygon group
- mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X+1,Y+1))
+ mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X,Y))
  #mpgrp = grp.create_group("%d" % (ID,))
  #metadata
  mtdgrp = mpgrp.create_group("metadata")
