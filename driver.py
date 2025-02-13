@@ -3,11 +3,14 @@ import netCDF4 as nc
 import geopandas
 import os
 import numpy as np
+import sys
+import json
 import scipy.sparse as sparse
 
-def create_database_mp(grp,ID,X,Y):
+def create_database_mp(grp,ID,X,Y,md):
  #open access to Duke HB database for macroscale polygon
- fpduke = nc.Dataset('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/GFDL_TEST/experiments/simulations/baseline/%d/input_file.nc' % ID)
+
+ fpduke = nc.Dataset(os.path.join(md['rdir'],f'experiments/simulations/baseline/{ID}/input_file.nc')) # open the HB database
  #create macroscale polygon group
  mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X+1,Y+1))
  #mpgrp = grp.create_group("%d" % (ID,))
@@ -189,22 +192,25 @@ def create_database_mp(grp,ID,X,Y):
 
  return
 
+mdfile = sys.argv[1] # metadata file
+metadata = json.load(open(mdfile,'r')) # read in metadata
+
 #create output file
-os.system('rm /ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TrialandError/test.h5')
-fp = h5py.File('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TrialandError/test.h5', 'w')
-grp = fp.create_group("grid_data")
+os.system(f'rm {os.path.join(metadata["rdir"],r"ptiles.h5")}') # remove file if it exists
+fp = h5py.File(os.path.join(metadata["rdir"],r"ptiles.h5"), 'w') # create file
+grp = fp.create_group("grid_data") # create group
 
 #iterate through the different macroscale polygons
-df = geopandas.read_file('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/GFDL_TEST/data/shp/domain.shp')
-nmp = len(df['ID'])
-for imp in range(nmp):
-    ID = df['ID'][imp]
-    X = df['X'][imp]
-    Y = df['Y'][imp]
+df = geopandas.read_file(os.path.join(metadata["rdir"],r'data/shp/domain.shp')) # read in the domain shapefile
+nmp = len(df['ID']) # number of macroscale polygons
+for imp in range(nmp): # iterate through the macroscale polygons
+    ID = df['ID'][imp] # macroscale polygon ID
+    X = df['X'][imp] # macroscale polygon X index
+    Y = df['Y'][imp] # macroscale polygon Y index
     print(ID,X,Y)
-    create_database_mp(grp,ID,X,Y)
+    create_database_mp(grp,ID,X,Y,metadata) # create the macroscale polygon database
 
 #Close file
-fp.close()
+fp.close() # close file
     
 
