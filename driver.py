@@ -7,7 +7,7 @@ import scipy.sparse as sparse
 
 def create_database_mp(grp,ID,X,Y):
  #open access to Duke HB database for macroscale polygon
- fpduke = nc.Dataset('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/GFDL_TEST/experiments/simulations/baseline/%d/input_file.nc' % ID)
+ fpduke = nc.Dataset('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TEST/GOM/experiments/simulations/baseline/%d/input_file.nc' % ID)
  #create macroscale polygon group
  mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X+1,Y+1))
  #mpgrp = grp.create_group("%d" % (ID,))
@@ -185,6 +185,11 @@ def create_database_mp(grp,ID,X,Y):
  #glacier
  #ggrp = mpgrp.create_group("glacier")
  #close netcdf file
+ #river network
+ rgrp = mggrp.create_group("river_network")
+ for var in fpduke['stream_network']:
+     rgrp[var] = fpduke['stream_network'][:]
+
  fpduke.close()
 
  return
@@ -195,7 +200,7 @@ fp = h5py.File('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TrialandError
 grp = fp.create_group("grid_data")
 
 #iterate through the different macroscale polygons
-df = geopandas.read_file('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/GFDL_TEST/data/shp/domain.shp')
+df = geopandas.read_file('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TEST/GOM/data/shp/domain.shp')
 nmp = len(df['ID'])
 for imp in range(nmp):
     ID = df['ID'][imp]
