@@ -9,7 +9,7 @@ def create_database_mp(grp,ID,X,Y):
  #open access to Duke HB database for macroscale polygon
  fpduke = nc.Dataset('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TEST/GOM/experiments/simulations/baseline/%d/input_file.nc' % ID)
  #create macroscale polygon group
- mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X+1,Y+1))
+ mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X,Y))
  #mpgrp = grp.create_group("%d" % (ID,))
  #metadata
  mtdgrp = mpgrp.create_group("metadata")
@@ -21,7 +21,8 @@ def create_database_mp(grp,ID,X,Y):
  #mtdgrp['frac'][:] = np.ones(fpduke['parameters']['hru'][:].size)/fpduke['parameters']['hru'][:].size
  #TMP
  mtdgrp['tid'] = (fpduke['parameters']['hru'][:]+1).astype(np.int32) #temporary
- mtdgrp['tile'] = (fpduke['parameters']['hru'][:]).astype(np.int32)
+ print((fpduke['parameters']['hru'][:]+1).astype(np.int32))
+ mtdgrp['tile'] = (fpduke['parameters']['hru'][:]+1).astype(np.int32)
  mtdgrp['type'] = 3*np.ones(fpduke['parameters']['hru'][:].size).astype(np.int32) #temporary
  #soil
  sgrp = mpgrp.create_group("soil")
@@ -186,9 +187,9 @@ def create_database_mp(grp,ID,X,Y):
  #ggrp = mpgrp.create_group("glacier")
  #close netcdf file
  #river network
- rgrp = mggrp.create_group("river_network")
- for var in fpduke['stream_network']:
-     rgrp[var] = fpduke['stream_network'][:]
+ #rgrp = mpgrp.create_group("river_network")
+ #for var in fpduke['stream_network'].variables:
+ #    rgrp[var] = fpduke['stream_network'][var][:]
 
  fpduke.close()
 
