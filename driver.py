@@ -3,11 +3,13 @@ import netCDF4 as nc
 import geopandas
 import os
 import numpy as np
+import sys
+import json
 import scipy.sparse as sparse
 
-def create_database_mp(grp,ID,X,Y):
+def create_database_mp(grp,ID,X,Y,md,cid_mapping):
  #open access to Duke HB database for macroscale polygon
- fpduke = nc.Dataset('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TEST/GOM/experiments/simulations/baseline/%d/input_file.nc' % ID)
+ fpduke = nc.Dataset(os.path.join(md['rdir'],f'experiments/simulations/baseline/{ID}/input_file.nc')) # open the HB database
  #create macroscale polygon group
  mpgrp = grp.create_group("tile:1,is:%d,js:%d" % (X,Y))
  #mpgrp = grp.create_group("%d" % (ID,))
@@ -49,13 +51,13 @@ def create_database_mp(grp,ID,X,Y):
  #dat_psi_sat_ref
  sgrp['dat_psi_sat_ref'] = (fpduke['parameters']['SATPSI'][:,0]).astype(np.float64) #units??
  #dat_refl_dry_dif
- sgrp['dat_refl_dry_dif'] = 0.333*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
+ sgrp['dat_refl_dry_dif'] = 0.333*np.ones((2,fpduke['parameters']['hru'][:].size)).astype(np.float64) ###
  #dat_refl_dry_dir
- sgrp['dat_refl_dry_dir'] = 0.333*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
+ sgrp['dat_refl_dry_dir'] = 0.333*np.ones((2,fpduke['parameters']['hru'][:].size)).astype(np.float64) ###
  #dat_refl_sat_dif
- sgrp['dat_refl_sat_dif'] = 0.333*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
+ sgrp['dat_refl_sat_dif'] = 0.333*np.ones((2,fpduke['parameters']['hru'][:].size)).astype(np.float64) ###
  #dat_refl_sat_dir
- sgrp['dat_refl_sat_dir'] = 0.333*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
+ sgrp['dat_refl_sat_dir'] = 0.333*np.ones((2,fpduke['parameters']['hru'][:].size)).astype(np.float64) ###
  #dat_tf_depr
  sgrp['dat_tf_depr'] = 2.0*np.ones(fpduke['parameters']['hru'][:].size).astype(np.float64) ###
  #dat_thermal_cond_dry
@@ -187,30 +189,84 @@ def create_database_mp(grp,ID,X,Y):
  #ggrp = mpgrp.create_group("glacier")
  #close netcdf file
  #river network
- #rgrp = mpgrp.create_group("river_network")
- #for var in fpduke['stream_network'].variables:
- #    rgrp[var] = fpduke['stream_network'][var][:]
+ rgrp = mpgrp.create_group("stream_network")
+ rgrp['nc'] = fpduke['stream_network']['downstream_channels'][:].shape[0]
+ rgrp['ninlets'] = fpduke['stream_network']['inlets'][:].shape[0]
+ rgrp['noutlets'] = fpduke['stream_network']['outlets'][:].shape[0]
+ for var in fpduke['stream_network'].variables:
+    rgrp[var] = fpduke['stream_network'][var][:].T
+ #Learn mapping of cid to gfdl cell structure
+ rgrp['gfdl2cid'] = cid_mapping['gfdl2cid'][:].T
+ rgrp['cid2gfdl'] = cid_mapping['cid2gfdl'][:].T
+ #Learn mapping of ucids that the river can flow to downstream in a given time step
+ ucids_downstream = np.unique(fpduke['stream_network']['downstream_channels'][:,1,:])
+ ucids_downstream = ucids_downstream[ucids_downstream!=-1]
+ ucids_downstream = ucids_downstream[ucids_downstream!=-9999]
+ tmp = np.zeros(rgrp['cid2gfdl'][:].T.shape[0]).astype(np.int32)
+ tmp[:] = -9999
+ for i in range(ucids_downstream.size):
+     tmp[ucids_downstream[i]-1] = i+1
+ rgrp['ucids_downstream'] = tmp[:].T
+ rgrp['nmps'] = cid_mapping['cid2gfdl'][:].shape[0]
+ rgrp['nucids_d'] = ucids_downstream.size
+ rgrp['cid'] = ID
+ #Determine the maximum number of channels for all the cids that it empties out into
+ maxnc = 0
+ for ucid in ucids_downstream:
+   cdir = '%s/%s' % (md['rdir'],'experiments/simulations/baseline/%d' % ucid)
+   fp = nc.Dataset('%s/input_file.nc' % cdir)
+   c_length = fp['stream_network']['length'][:]
+   fp.close()
+   if c_length.size > maxnc:maxnc = c_length.size
+ downstream_c_length = np.zeros((ucids_downstream.size,maxnc))
+ downstream_c_length[:] = -9999
+ for ucid in ucids_downstream:
+   cdir = '%s/%s' % (md['rdir'],'experiments/simulations/baseline/%d' % ucid)
+   fp = nc.Dataset('%s/input_file.nc' % cdir)
+   c_length = fp['stream_network']['length'][:]
+   downstream_c_length[tmp[ucid-1]-1,:c_length.size] = c_length[:]
+   fp.close()
+ rgrp['downstream_c_length'] = downstream_c_length[:].T
+ rgrp['nc_d'] = maxnc
 
  fpduke.close()
 
  return
 
+mdfile = sys.argv[1] # metadata file
+metadata = json.load(open(mdfile,'r')) # read in metadata
+
 #create output file
-os.system('rm /ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TrialandError/test.h5')
-fp = h5py.File('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TrialandError/test.h5', 'w')
-grp = fp.create_group("grid_data")
+os.system(f'rm {os.path.join(metadata["rdir"],r"ptiles.h5")}') # remove file if it exists
+fp = h5py.File(os.path.join(metadata["rdir"],r"ptiles.h5"), 'w') # create file
+grp = fp.create_group("grid_data") # create group
 
 #iterate through the different macroscale polygons
-df = geopandas.read_file('/ncrc/home2/Nathaniel.Chaney/Predefined_Tiles_2025/TEST/GOM/data/shp/domain.shp')
-nmp = len(df['ID'])
-for imp in range(nmp):
-    ID = df['ID'][imp]
-    X = df['X'][imp]
-    Y = df['Y'][imp]
+df = geopandas.read_file(os.path.join(metadata["rdir"],r'data/shp/domain.shp')) # read in the domain shapefile
+print(df)
+xs = np.arange(np.max(df.X.values)).astype(np.int32)+1
+ys = np.arange(np.max(df.Y.values)).astype(np.int32)+1
+faces = np.arange(np.max(df.TILE.values)).astype(np.int32)+1
+#gfdl cell structure 2 cid
+gfdl2cid = np.zeros((np.max(faces),np.max(xs),np.max(ys))).astype(np.int32)
+gfdl2cid[:] = -9999
+for i in range(len(df)):
+    gfdl2cid[df.TILE.values[i]-1,df.X.values[i]-1,df.Y.values[i]-1] = df.ID.values[i]
+#cid to gfdl cell structure
+cid2gfdl = np.zeros((df.ID.values.size,3))
+cid2gfdl[:] = -9999
+for i in range(len(df)):
+    cid2gfdl[i][:] = [df.TILE.values[i],df.X.values[i],df.Y.values[i]]
+cid_mapping = {'gfdl2cid':gfdl2cid,'cid2gfdl':cid2gfdl}
+nmp = len(df['ID']) # number of macroscale polygons
+for imp in range(nmp): # iterate through the macroscale polygons
+    ID = df['ID'][imp] # macroscale polygon ID
+    X = df['X'][imp] # macroscale polygon X index
+    Y = df['Y'][imp] # macroscale polygon Y index
     print(ID,X,Y)
-    create_database_mp(grp,ID,X,Y)
+    create_database_mp(grp,ID,X,Y,metadata,cid_mapping) # create the macroscale polygon database
 
 #Close file
-fp.close()
+fp.close() # close file
     
 
