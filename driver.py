@@ -199,13 +199,14 @@ def create_database_mp(grp,ID,X,Y,md,cid_mapping):
  rgrp['gfdl2cid'] = cid_mapping['gfdl2cid'][:].T
  rgrp['cid2gfdl'] = cid_mapping['cid2gfdl'][:].T
  #Learn mapping of ucids that the river can flow to downstream in a given time step
- ucids_downstream = np.unique(fpduke['stream_network']['downstream_channels'][:,1,:])
+ ucids_downstream = np.unique(fpduke['stream_network']['downstream_channels'][:,1,:]) # This is 1 because the construction of downstream_channels is 0: channel, 1: cid
  ucids_downstream = ucids_downstream[ucids_downstream!=-1]
  ucids_downstream = ucids_downstream[ucids_downstream!=-9999]
  tmp = np.zeros(rgrp['cid2gfdl'][:].T.shape[0]).astype(np.int32)
  tmp[:] = -9999
  for i in range(ucids_downstream.size):
-     tmp[ucids_downstream[i]-1] = i+1
+    #  tmp[ucids_downstream[i]-1] = i+1 # AP Commented this out, changed to the line below. Why would it be based on the i index, instead of the cid?
+     tmp[ucids_downstream[i]-1] = ucids_downstream[i]
  rgrp['ucids_downstream'] = tmp[:].T
  rgrp['nmps'] = cid_mapping['cid2gfdl'][:].shape[0]
  rgrp['nucids_d'] = ucids_downstream.size
@@ -220,11 +221,11 @@ def create_database_mp(grp,ID,X,Y,md,cid_mapping):
    if c_length.size > maxnc:maxnc = c_length.size
  downstream_c_length = np.zeros((ucids_downstream.size,maxnc))
  downstream_c_length[:] = -9999
- for ucid in ucids_downstream:
+ for index, ucid in enumerate(ucids_downstream): # AP Changed this loop to use enumerate for index, to account for ucid values not being sequential in some cases
    cdir = '%s/%s' % (md['rdir'],'experiments/simulations/baseline/%d' % ucid)
    fp = nc.Dataset('%s/input_file.nc' % cdir)
    c_length = fp['stream_network']['length'][:]
-   downstream_c_length[tmp[ucid-1]-1,:c_length.size] = c_length[:]
+   downstream_c_length[index,:c_length.size] = c_length[:]
    fp.close()
  rgrp['downstream_c_length'] = downstream_c_length[:].T
  rgrp['nc_d'] = maxnc
